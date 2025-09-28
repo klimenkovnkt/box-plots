@@ -253,39 +253,42 @@ class DistributionMatcher {
     }
 
     renderSinglePlot(plot, containerId) {
-        const layout = {
-            margin: { t: 10, r: 10, b: 40, l: 50 },
-            height: 200,
-            showlegend: false,
-            xaxis: { 
-                showgrid: true, 
-                zeroline: false,
-                range: plot.type === 'qq' ? [-3, 3] : [0, 100]
-            },
-            yaxis: { 
-                showgrid: true, 
-                zeroline: false,
-                range: plot.type === 'qq' ? [0, 100] : undefined
-            }
-        };
-
-        if (plot.type === 'qq') {
-            layout.xaxis.title = 'Теоретические квантили';
-            layout.yaxis.title = 'Выборочные квантили';
-        } else if (plot.type === 'histogram') {
-            layout.xaxis.title = 'Значение';
-            layout.yaxis.title = 'Частота';
-            layout.bargap = 0.1;
-        } else {
-            layout.yaxis.title = 'Значение';
-            layout.xaxis = { showticklabels: false, title: '' };
+    const layout = {
+        margin: { t: 10, r: 10, b: 40, l: 50 },
+        height: 280, // Увеличили с 200 до 280
+        showlegend: false,
+        xaxis: { 
+            showgrid: true, 
+            zeroline: false,
+            range: plot.type === 'qq' ? [-3, 3] : [0, 100]
+        },
+        yaxis: { 
+            showgrid: true, 
+            zeroline: false,
+            range: plot.type === 'qq' ? [0, 100] : undefined
         }
+    };
 
-        // Для QQ-plot передаем оба трейса
-        const data = Array.isArray(plot.data) ? plot.data : [plot.data];
-        
-        Plotly.newPlot(containerId, data, layout, {displayModeBar: false});
+    if (plot.type === 'qq') {
+        layout.xaxis.title = 'Теоретические квантили';
+        layout.yaxis.title = 'Выборочные квантили';
+        layout.height = 260; // Для QQ-plot тоже увеличим
+    } else if (plot.type === 'histogram') {
+        layout.xaxis.title = 'Значение';
+        layout.yaxis.title = 'Частота';
+        layout.bargap = 0.1;
+        layout.height = 280;
+    } else {
+        layout.yaxis.title = 'Значение';
+        layout.xaxis = { showticklabels: false, title: '' };
+        layout.height = 280; // Box-plot особенно выиграет от увеличения высоты
     }
+
+    // Для QQ-plot передаем оба трейса
+    const data = Array.isArray(plot.data) ? plot.data : [plot.data];
+    
+    Plotly.newPlot(containerId, data, layout, {displayModeBar: false});
+}
 
     selectPlot(category, label) {
         // Если этот график уже в найденной тройке - игнорируем
