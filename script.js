@@ -1,9 +1,17 @@
 class DistributionMatcher {
     constructor() {
         this.distributions = [];
-        this.plots = [];
-        this.selectedDistribution = null;
-        this.selectedPlot = null;
+        this.plots = {
+            density: [], // a, b, c
+            box: [],     // 1, 2, 3  
+            qq: []       // I, II, III
+        };
+        this.currentSelection = {
+            density: null,
+            box: null,
+            qq: null
+        };
+        this.foundMatches = [];
         this.correctMatches = {};
         this.init();
     }
@@ -11,57 +19,45 @@ class DistributionMatcher {
     init() {
         this.generateDistributions();
         this.createPlots();
-        this.renderDistributionsList();
-        this.renderPlotsGrid();
+        this.renderPlots();
         this.setupEventListeners();
+        this.updateSelectionDisplay();
     }
 
     generateDistributions() {
-        const types = [
-            {
-                name: 'Бимодальное',
-                generator: () => {
-                    const data1 = this.generateNormal(-2, 0.8, 200);
-                    const data2 = this.generateNormal(2, 0.8, 200);
-                    return data1.concat(data2);
-                }
+        const generators = [
+            // Бимодальное
+            () => {
+                const data1 = this.generateNormal(-2, 0.8, 150);
+                const data2 = this.generateNormal(2, 0.8, 150);
+                return data1.concat(data2);
             },
-            {
-                name: 'Нормальное',
-                generator: () => this.generateNormal(0, 1, 400)
+            // Нормальное
+            () => this.generateNormal(0, 1, 300),
+            // Асимметричное
+            () => {
+                const data = this.generateNormal(0, 1, 300);
+                return data.map(x => Math.exp(x * 0.6) - 1);
             },
-            {
-                name: 'Нормальное с асимметрией',
-                generator: () => {
-                    const data = this.generateNormal(0, 1, 400);
-                    return data.map(x => Math.exp(x * 0.7)); // Логнормальное для асимметрии
-                }
+            // Узкое нормальное
+            () => this.generateNormal(0, 0.4, 300),
+            // Узкое с выбросами
+            () => {
+                const mainData = this.generateNormal(0, 0.3, 280);
+                const outliers = this.generateNormal(4, 0.2, 10)
+                             .concat(this.generateNormal(-4, 0.2, 10));
+                return mainData.concat(outliers);
             },
-            {
-                name: 'Узкое нормальное',
-                generator: () => this.generateNormal(0, 0.3, 400)
-            },
-            {
-                name: 'Узкое с выбросами',
-                generator: () => {
-                    const mainData = this.generateNormal(0, 0.4, 380);
-                    const outliers = this.generateNormal(5, 0.1, 10)
-                                 .concat(this.generateNormal(-5, 0.1, 10));
-                    return mainData.concat(outliers);
-                }
-            },
-            {
-                name: 'Широкое нормальное',
-                generator: () => this.generateNormal(0, 2, 400)
-            }
+            // Широкое нормальное
+            () => this.generateNormal(0, 2, 300)
         ];
 
         // Выбираем 3 случайных распределения
-        const shuffled = [...types].sort(() => Math.random() - 0.5);
-        this.distributions = shuffled.slice(0, 3).map(dist => ({
-            name: dist.name,
-            data: dist.generator(),
-            id: this.generateId()
+        const shuffled = [...generators].sort(() => Math.random() - 0.5);
+        this.distributions = shuffled.slice(0, 3).map((generator, index) => ({
+            id: index,
+            data: generator(),
+            label: String.fromCharCode(97 + index) // a, b, c
         }));
     }
 
@@ -78,52 +74,76 @@ class DistributionMatcher {
     }
 
     createPlots() {
-        this.plots = [];
+        // Очищаем предыдущие графики
+        this.plots = { density: [], box: [], qq: [] };
         
+        // Создаем графики для каждого распределения
         this.distributions.forEach(dist => {
             // Density plot
-            const densityTrace = this.createDensityPlot(dist.data, dist.name);
+            this.plots.density.push({
+                type: 'density',
+                data: this.createDensityPlot(dist.data),
+                distributionId: dist.id,
+                label: dist.label,
+                id: `density-${dist.id}`
+            });
             
             // Box plot
-            const boxTrace = this.createBoxPlot(dist.data, dist.name);
+            this.plots.box.push({
+                type: 'box',
+                data: this.createBoxPlot(dist.data),
+                distributionId: dist.id,
+                label: (this.plots.box.length + 1).toString(),
+                id: `box-${dist.id}`
+            });
             
             // QQ plot
-            const qqTrace = this.createQQPlot(dist.data, dist.name);
-            
-            this.plots.push(
-                { type: 'density', data: densityTrace, distributionId: dist.id, id: this.generateId() },
-                { type: 'box', data: boxTrace, distributionId: dist.id, id: this.generateId() },
-                { type: 'qq', data: qqTrace, distributionId: dist.id, id: this.generateId() }
-            );
+            this.plots.qq.push({
+                type: 'qq',
+                data: this.createQQPlot(dist.data),
+                distributionId: dist.id,
+                label: ['I', 'II', 'III'][this.plots.qq.length],
+                id: `qq-${dist.id}`
+            });
         });
 
-        // Перемешиваем графики
-        this.shuffleArray(this.plots);
+        // Перемешиваем графики внутри каждой категории
+        this.shuffleArray(this.plots.density);
+        this.shuffleArray(this.plots.box);
+        this.shuffleArray(this.plots.qq);
+
+        // Сохраняем правильные соответствия
+        this.correctMatches = {};
+        this.distributions.forEach(dist => {
+            this.correctMatches[dist.id] = {
+                density: this.plots.density.find(p => p.distributionId === dist.id).label,
+                box: this.plots.box.find(p => p.distributionId === dist.id).label,
+                qq: this.plots.qq.find(p => p.distributionId === dist.id).label
+            };
+        });
     }
 
-    createDensityPlot(data, name) {
+    createDensityPlot(data) {
         const kde = this.kde(data);
         return {
             x: kde.x,
             y: kde.y,
             type: 'scatter',
             mode: 'lines',
-            name: name,
-            line: { color: '#1f77b4', width: 2 }
+            line: { color: '#1f77b4', width: 3 }
         };
     }
 
-    createBoxPlot(data, name) {
+    createBoxPlot(data) {
         return {
             y: data,
             type: 'box',
-            name: name,
             boxpoints: false,
             marker: { color: '#ff7f0e' }
         };
     }
 
-    createQQPlot(data, name) {
+    createQQPlot(data) {
         const sortedData = [...data].sort((a, b) => a - b);
         const theoreticalQuantiles = this.generateTheoreticalQuantiles(sortedData.length);
         
@@ -132,7 +152,6 @@ class DistributionMatcher {
             y: sortedData,
             type: 'scatter',
             mode: 'markers',
-            name: name,
             marker: { color: '#2ca02c', size: 4 }
         };
     }
@@ -147,7 +166,6 @@ class DistributionMatcher {
     }
 
     normalQuantile(p) {
-        // Аппроксимация квантиля нормального распределения
         if (p < 0.5) {
             return -this.normalQuantile(1 - p);
         }
@@ -179,175 +197,162 @@ class DistributionMatcher {
         return {x, y};
     }
 
-    renderDistributionsList() {
-        const container = document.getElementById('distributions-list');
-        container.innerHTML = '';
-        
-        this.distributions.forEach(dist => {
-            const div = document.createElement('div');
-            div.className = 'distribution-item';
-            div.dataset.id = dist.id;
-            div.innerHTML = `
-                <span>${dist.name}</span>
-                <div class="match-indicator"></div>
-            `;
-            div.addEventListener('click', () => this.selectDistribution(dist.id));
-            container.appendChild(div);
-        });
+    renderPlots() {
+        this.renderPlotCategory('density', 'density-plots');
+        this.renderPlotCategory('box', 'box-plots');
+        this.renderPlotCategory('qq', 'qq-plots');
     }
 
-    renderPlotsGrid() {
-        const container = document.getElementById('plots-grid');
+    renderPlotCategory(category, containerId) {
+        const container = document.getElementById(containerId);
         container.innerHTML = '';
         
-        this.plots.forEach((plot, index) => {
+        this.plots[category].forEach(plot => {
             const plotDiv = document.createElement('div');
-            plotDiv.className = 'plot-item';
-            plotDiv.dataset.id = plot.id;
+            plotDiv.className = `plot-wrapper ${this.isPlotSelected(category, plot.label) ? 'selected' : ''} ${this.isPlotMatched(plot) ? 'matched' : ''}`;
+            plotDiv.dataset.category = category;
+            plotDiv.dataset.label = plot.label;
+            
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'plot-label';
+            labelDiv.textContent = plot.label;
             
             const plotContainer = document.createElement('div');
+            plotContainer.className = 'plot';
             plotContainer.id = `plot-${plot.id}`;
-            plotContainer.className = 'plot-container';
             
-            const typeLabel = document.createElement('div');
-            typeLabel.className = 'plot-type';
-            typeLabel.textContent = this.getPlotTypeName(plot.type);
-            
-            plotDiv.appendChild(typeLabel);
+            plotDiv.appendChild(labelDiv);
             plotDiv.appendChild(plotContainer);
-            plotDiv.addEventListener('click', () => this.selectPlot(plot.id));
+            plotDiv.addEventListener('click', () => this.selectPlot(category, plot.label));
             
             container.appendChild(plotDiv);
             
             // Рендерим график
-            this.renderPlot(plot, plotContainer.id);
+            this.renderSinglePlot(plot, plotContainer.id);
         });
     }
 
-    getPlotTypeName(type) {
-        const names = {
-            'density': 'Плотность вероятности',
-            'box': 'Box-plot',
-            'qq': 'QQ-plot'
-        };
-        return names[type];
-    }
-
-    renderPlot(plot, containerId) {
+    renderSinglePlot(plot, containerId) {
         const layout = {
-            margin: { t: 30, r: 30, b: 40, l: 50 },
-            height: 200,
+            margin: { t: 10, r: 10, b: 30, l: 40 },
+            height: 180,
             showlegend: false,
-            xaxis: { showgrid: true },
-            yaxis: { showgrid: true }
+            xaxis: { showgrid: true, zeroline: false },
+            yaxis: { showgrid: true, zeroline: false }
         };
 
         if (plot.type === 'qq') {
-            layout.xaxis.title = 'Теоретические квантили';
-            layout.yaxis.title = 'Выборочные квантили';
+            layout.xaxis.title = 'Теор. квантили';
+            layout.yaxis.title = 'Выб. квантили';
         } else if (plot.type === 'density') {
             layout.xaxis.title = 'Значение';
             layout.yaxis.title = 'Плотность';
         } else {
             layout.yaxis.title = 'Значение';
+            layout.xaxis = { showticklabels: false };
         }
 
         Plotly.newPlot(containerId, [plot.data], layout, {displayModeBar: false});
     }
 
-    selectDistribution(distId) {
-        // Снимаем выделение со всех распределений
-        document.querySelectorAll('.distribution-item').forEach(item => {
-            item.classList.remove('selected');
-        });
-        
-        // Выделяем выбранное
-        const selected = document.querySelector(`.distribution-item[data-id="${distId}"]`);
-        selected.classList.add('selected');
-        
-        this.selectedDistribution = distId;
-        this.checkForMatch();
+    selectPlot(category, label) {
+        // Если этот график уже в найденной тройке - игнорируем
+        if (this.isPlotInFoundMatch(category, label)) {
+            return;
+        }
+
+        this.currentSelection[category] = label;
+        this.updateSelectionDisplay();
+        this.renderPlots(); // Перерисовываем для обновления выделения
     }
 
-    selectPlot(plotId) {
-        // Снимаем выделение со всех графиков
-        document.querySelectorAll('.plot-item').forEach(item => {
-            item.classList.remove('selected');
-        });
-        
-        // Выделяем выбранный
-        const selected = document.querySelector(`.plot-item[data-id="${plotId}"]`);
-        selected.classList.add('selected');
-        
-        this.selectedPlot = plotId;
-        this.checkForMatch();
+    isPlotSelected(category, label) {
+        return this.currentSelection[category] === label;
     }
 
-    checkForMatch() {
-        if (this.selectedDistribution && this.selectedPlot) {
-            const plot = this.plots.find(p => p.id === this.selectedPlot);
-            const distribution = this.distributions.find(d => d.id === this.selectedDistribution);
+    isPlotMatched(plot) {
+        return this.foundMatches.some(match => 
+            match.density === plot.label && plot.type === 'density' ||
+            match.box === plot.label && plot.type === 'box' || 
+            match.qq === plot.label && plot.type === 'qq'
+        );
+    }
+
+    isPlotInFoundMatch(category, label) {
+        return this.foundMatches.some(match => match[category] === label);
+    }
+
+    updateSelectionDisplay() {
+        document.getElementById('density-selection').textContent = this.currentSelection.density || '-';
+        document.getElementById('box-selection').textContent = this.currentSelection.box || '-';
+        document.getElementById('qq-selection').textContent = this.currentSelection.qq || '-';
+    }
+
+    checkSelection() {
+        const { density, box, qq } = this.currentSelection;
+        
+        if (!density || !box || !qq) {
+            this.showResult('Выберите по одному графику из каждой категории!', 'error');
+            return;
+        }
+
+        // Проверяем, является ли выбранная тройка правильной
+        const distributionId = this.findDistributionForSelection();
+        
+        if (distributionId !== -1) {
+            // Правильное сопоставление!
+            this.foundMatches.push({ density, box, qq });
+            this.showResult(`Верно! Вы нашли правильную тройку ${density}-${box}-${qq}`, 'success');
+            this.clearSelection();
+            this.updateProgress();
             
-            if (plot && distribution) {
-                if (plot.distributionId === distribution.id) {
-                    // Правильное сопоставление
-                    this.correctMatches[this.selectedPlot] = this.selectedDistribution;
-                    
-                    // Показываем успех
-                    this.showMatchSuccess(this.selectedPlot, this.selectedDistribution);
-                    
-                    // Сбрасываем выбор
-                    this.selectedDistribution = null;
-                    this.selectedPlot = null;
-                    
-                    // Проверяем завершение игры
-                    this.checkGameCompletion();
-                } else {
-                    // Неправильное сопоставление
-                    this.showMatchError();
-                    this.clearSelection();
-                }
+            if (this.foundMatches.length === 3) {
+                this.showResult('Поздравляем! Вы нашли все три тройки! Отличное понимание графиков!', 'final-success');
             }
+        } else {
+            this.showResult('Неверно! Эта тройка не соответствует одному распределению', 'error');
         }
     }
 
-    showMatchSuccess(plotId, distId) {
-        const plotElement = document.querySelector(`.plot-item[data-id="${plotId}"]`);
-        const distElement = document.querySelector(`.distribution-item[data-id="${distId}"]`);
+    findDistributionForSelection() {
+        const { density, box, qq } = this.currentSelection;
         
-        plotElement.classList.add('matched');
-        distElement.classList.add('matched');
-        
-        plotElement.querySelector('.match-indicator')?.remove();
-        distElement.querySelector('.match-indicator').textContent = '✓';
+        for (let distId = 0; distId < 3; distId++) {
+            const correct = this.correctMatches[distId];
+            if (correct.density === density && correct.box === box && correct.qq === qq) {
+                return distId;
+            }
+        }
+        return -1;
     }
 
-    showMatchError() {
+    showResult(message, type) {
         const resultElement = document.getElementById('result');
-        resultElement.textContent = 'Неверное сопоставление! Попробуйте еще раз.';
-        resultElement.className = 'result error';
+        resultElement.textContent = message;
+        resultElement.className = `result ${type}`;
         
-        setTimeout(() => {
-            resultElement.textContent = '';
-            resultElement.className = 'result';
-        }, 2000);
-    }
-
-    checkGameCompletion() {
-        const matchedPlots = Object.keys(this.correctMatches).length;
-        if (matchedPlots === this.plots.length) {
-            const resultElement = document.getElementById('result');
-            resultElement.textContent = 'Поздравляем! Все сопоставления верны! Вы отлично понимаете распределения!';
-            resultElement.className = 'result success';
+        if (type !== 'final-success') {
+            setTimeout(() => {
+                if (resultElement.textContent === message) {
+                    resultElement.textContent = '';
+                    resultElement.className = 'result';
+                }
+            }, 3000);
         }
     }
 
     clearSelection() {
-        this.selectedDistribution = null;
-        this.selectedPlot = null;
-        document.querySelectorAll('.distribution-item, .plot-item').forEach(item => {
-            item.classList.remove('selected');
-        });
+        this.currentSelection = { density: null, box: null, qq: null };
+        this.updateSelectionDisplay();
+        this.renderPlots();
+    }
+
+    updateProgress() {
+        const progressCount = document.getElementById('progress-count');
+        const progressFill = document.getElementById('progress-fill');
+        
+        progressCount.textContent = this.foundMatches.length;
+        progressFill.style.width = `${(this.foundMatches.length / 3) * 100}%`;
     }
 
     shuffleArray(array) {
@@ -357,31 +362,32 @@ class DistributionMatcher {
         }
     }
 
-    generateId() {
-        return Math.random().toString(36).substr(2, 9);
-    }
-
     setupEventListeners() {
         document.getElementById('check-btn').addEventListener('click', () => {
-            this.checkGameCompletion();
+            this.checkSelection();
         });
 
-        document.getElementById('reset-btn').addEventListener('click', () => {
-            this.resetGame();
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            this.clearSelection();
+        });
+
+        document.getElementById('new-game-btn').addEventListener('click', () => {
+            this.newGame();
         });
     }
 
-    resetGame() {
+    newGame() {
         this.distributions = [];
-        this.plots = [];
-        this.selectedDistribution = null;
-        this.selectedPlot = null;
+        this.plots = { density: [], box: [], qq: [] };
+        this.currentSelection = { density: null, box: null, qq: null };
+        this.foundMatches = [];
         this.correctMatches = {};
         
         document.getElementById('result').textContent = '';
         document.getElementById('result').className = 'result';
         
         this.init();
+        this.updateProgress();
     }
 }
 
