@@ -11,24 +11,25 @@
 <body>
     <div class="container">
         <h1>Сопоставьте графики одного распределения</h1>
-        <p class="description">Найдите тройки графиков (плотность, box-plot, QQ-plot), которые показывают одно и то же распределение</p>
+        <p class="description">Найдите тройки графиков (гистограмма, box-plot, QQ-plot), которые показывают одно и то же распределение</p>
         
         <div class="instructions">
             <div class="instruction-section">
                 <h3>Правила игры:</h3>
                 <ul>
                     <li>Найдите три графика, которые показывают одно распределение</li>
-                    <li>Нажмите на график плотности (a, b, c), затем на box-plot (1, 2, 3), затем на QQ-plot (I, II, III)</li>
+                    <li>Нажмите на гистограмму (a, b, c), затем на box-plot (1, 2, 3), затем на QQ-plot (I, II, III)</li>
                     <li>Если все три графика показывают одно распределение - вы правильно нашли тройку!</li>
+                    <li>Все значения находятся в диапазоне от 0 до 100</li>
                 </ul>
             </div>
         </div>
         
         <div class="plots-section">
             <div class="plot-category">
-                <h3>Графики плотности</h3>
-                <div class="plots-row" id="density-plots">
-                    <!-- Графики плотности a, b, c -->
+                <h3>Гистограммы</h3>
+                <div class="plots-row" id="histogram-plots">
+                    <!-- Гистограммы a, b, c -->
                 </div>
             </div>
             
@@ -51,8 +52,8 @@
             <h3>Ваш выбор:</h3>
             <div id="current-selection" class="current-selection">
                 <div class="selection-item">
-                    <span>Плотность: </span>
-                    <span id="density-selection">-</span>
+                    <span>Гистограмма: </span>
+                    <span id="histogram-selection">-</span>
                 </div>
                 <div class="selection-item">
                     <span>Box-plot: </span>
