@@ -26,30 +26,45 @@ class DistributionMatcher {
 
     generateDistributions() {
         const generators = [
-            // Бимодальное (два пика)
+            // Бимодальное (два пика) с выбросами
             () => {
-                const data1 = this.generateNormal(25, 8, 150);
-                const data2 = this.generateNormal(75, 8, 150);
-                return this.clampData(data1.concat(data2));
+                const data1 = this.generateNormal(25, 8, 140);
+                const data2 = this.generateNormal(75, 8, 140);
+                const mainData = this.clampData(data1.concat(data2));
+                const outliers = this.generateOutliers(5, 95, 20);
+                return this.addOutliers(mainData, outliers);
             },
-            // Нормальное распределение
-            () => this.clampData(this.generateNormal(50, 15, 300)),
-            // Асимметричное (скошенное вправо)
+            // Нормальное распределение с выбросами
             () => {
-                const data = this.generateNormal(30, 10, 300);
-                return this.clampData(data.map(x => x * 1.5 + 20));
+                const mainData = this.clampData(this.generateNormal(50, 15, 290));
+                const outliers = this.generateOutliers(10, 90, 10);
+                return this.addOutliers(mainData, outliers);
             },
-            // Узкое нормальное
-            () => this.clampData(this.generateNormal(50, 5, 300)),
-            // Узкое с выбросами
+            // Асимметричное (скошенное вправо) с выбросами
             () => {
-                const mainData = this.generateNormal(50, 5, 280);
-                const outliers = this.generateNormal(90, 2, 10)
-                             .concat(this.generateNormal(10, 2, 10));
-                return this.clampData(mainData.concat(outliers));
+                const data = this.generateNormal(30, 10, 290);
+                const mainData = this.clampData(data.map(x => x * 1.5 + 20));
+                const outliers = this.generateOutliers(5, 85, 10);
+                return this.addOutliers(mainData, outliers);
             },
-            // Широкое нормальное
-            () => this.clampData(this.generateNormal(50, 25, 300))
+            // Узкое нормальное с выбросами
+            () => {
+                const mainData = this.clampData(this.generateNormal(50, 5, 280));
+                const outliers = this.generateOutliers(15, 85, 20);
+                return this.addOutliers(mainData, outliers);
+            },
+            // Узкое с большим количеством выбросов
+            () => {
+                const mainData = this.clampData(this.generateNormal(50, 3, 250));
+                const outliers = this.generateOutliers(10, 90, 50);
+                return this.addOutliers(mainData, outliers);
+            },
+            // Широкое нормальное с выбросами
+            () => {
+                const mainData = this.clampData(this.generateNormal(50, 25, 290));
+                const outliers = this.generateOutliers(5, 95, 10);
+                return this.addOutliers(mainData, outliers);
+            }
         ];
 
         // Выбираем 3 случайных распределения
@@ -60,7 +75,7 @@ class DistributionMatcher {
             label: String.fromCharCode(97 + index) // a, b, c
         }));
 
-        console.log('Generated distributions:', this.distributions);
+        console.log('Generated distributions with outliers:', this.distributions);
     }
 
     generateNormal(mean, std, n) {
@@ -73,6 +88,25 @@ class DistributionMatcher {
             data.push(mean + std * z);
         }
         return data;
+    }
+
+    generateOutliers(min, max, count) {
+        const outliers = [];
+        for (let i = 0; i < count; i++) {
+            // Генерируем выбросы за пределами основного диапазона
+            if (Math.random() > 0.5) {
+                // Выбросы слева
+                outliers.push(min - Math.random() * 10 - 5);
+            } else {
+                // Выбросы справа
+                outliers.push(max + Math.random() * 10 + 5);
+            }
+        }
+        return outliers;
+    }
+
+    addOutliers(mainData, outliers) {
+        return this.clampData(mainData.concat(outliers));
     }
 
     clampData(data) {
@@ -100,7 +134,7 @@ class DistributionMatcher {
                 id: `histogram-${dist.id}`
             });
             
-            // Box plot
+            // Box plot с выбросами
             const boxData = this.createBoxPlot(dist.data);
             this.plots.box.push({
                 type: 'box',
@@ -157,13 +191,54 @@ class DistributionMatcher {
     }
 
     createBoxPlot(data) {
+        // Вычисляем статистики для правильного отображения выбросов
+        const sorted = [...data].sort((a, b) => a - b);
+        const q1 = this.quantile(sorted, 0.25);
+        const q3 = this.quantile(sorted, 0.75);
+        const iqr = q3 - q1;
+        const lowerFence = q1 - 1.5 * iqr;
+        const upperFence = q3 + 1.5 * iqr;
+        
+        // Разделяем данные на основные и выбросы
+        const mainData = sorted.filter(x => x >= lowerFence && x <= upperFence);
+        const outliers = sorted.filter(x => x < lowerFence || x > upperFence);
+
         return {
-            y: data,
+            y: mainData, // Основные данные без выбросов
             type: 'box',
-            boxpoints: false,
-            marker: { color: '#ff7f0e' },
-            line: { color: '#ff7f0e' }
+            boxpoints: false, // Не показывать точки для основных данных
+            marker: { 
+                color: '#ff7f0e',
+                size: 6
+            },
+            line: { 
+                color: '#ff7f0e',
+                width: 2
+            },
+            // Добавляем выбросы отдельно
+            ...(outliers.length > 0 && {
+                boxpoints: 'suspectedoutliers',
+                marker: {
+                    color: '#ff7f0e',
+                    size: 6,
+                    outliercolor: '#d62728',
+                    line: {
+                        outliercolor: '#d62728',
+                        outlierwidth: 2
+                    }
+                }
+            })
         };
+    }
+
+    quantile(sorted, p) {
+        const index = (sorted.length - 1) * p;
+        const lower = Math.floor(index);
+        const upper = lower + 1;
+        const weight = index - lower;
+        
+        if (upper >= sorted.length) return sorted[lower];
+        return sorted[lower] * (1 - weight) + sorted[upper] * weight;
     }
 
     createQQPlot(data) {
@@ -177,16 +252,24 @@ class DistributionMatcher {
                 y: sortedData,
                 type: 'scatter',
                 mode: 'markers',
-                marker: { color: '#2ca02c', size: 5 },
+                marker: { 
+                    color: '#2ca02c', 
+                    size: 5,
+                    opacity: 0.7
+                },
                 name: 'QQ Plot'
             },
             // Линия y=x для сравнения
             {
                 x: [-3, 3],
-                y: [-3, 3],
+                y: [0, 100], // Масштабируем линию под наш диапазон данных
                 type: 'scatter',
                 mode: 'lines',
-                line: { color: 'red', width: 1, dash: 'dash' },
+                line: { 
+                    color: 'red', 
+                    width: 2, 
+                    dash: 'dash' 
+                },
                 showlegend: false
             }
         ];
@@ -253,52 +336,51 @@ class DistributionMatcher {
     }
 
     renderSinglePlot(plot, containerId) {
-    const layout = {
-        margin: { t: 10, r: 10, b: 40, l: 50 },
-        height: 280, // Увеличили с 200 до 280
-        showlegend: false,
-        xaxis: { 
-            showgrid: true, 
-            zeroline: false,
-            range: plot.type === 'qq' ? [-3, 3] : [0, 100]
-        },
-        yaxis: { 
-            showgrid: true, 
-            zeroline: false,
-            range: plot.type === 'qq' ? [0, 100] : undefined
-        }
-    };
+        const layout = {
+            margin: { t: 10, r: 10, b: 40, l: 50 },
+            height: 280,
+            showlegend: false,
+            xaxis: { 
+                showgrid: true, 
+                zeroline: false,
+                range: plot.type === 'qq' ? [-3, 3] : [0, 100]
+            },
+            yaxis: { 
+                showgrid: true, 
+                zeroline: false,
+                range: plot.type === 'qq' ? [0, 100] : undefined
+            }
+        };
 
-    if (plot.type === 'qq') {
-        layout.xaxis.title = 'Теоретические квантили';
-        layout.yaxis.title = 'Выборочные квантили';
-        layout.height = 260; // Для QQ-plot тоже увеличим
-    } else if (plot.type === 'histogram') {
-        layout.xaxis.title = 'Значение';
-        layout.yaxis.title = 'Частота';
-        layout.bargap = 0.1;
-        layout.height = 280;
-    } else {
-        layout.yaxis.title = 'Значение';
-        layout.xaxis = { showticklabels: false, title: '' };
-        layout.height = 280; // Box-plot особенно выиграет от увеличения высоты
+        if (plot.type === 'qq') {
+            layout.xaxis.title = 'Теоретические квантили';
+            layout.yaxis.title = 'Выборочные квантили';
+            layout.height = 260;
+        } else if (plot.type === 'histogram') {
+            layout.xaxis.title = 'Значение';
+            layout.yaxis.title = 'Частота';
+            layout.bargap = 0.1;
+            layout.height = 280;
+        } else {
+            layout.yaxis.title = 'Значение';
+            layout.xaxis = { showticklabels: false, title: '' };
+            layout.height = 280;
+        }
+
+        // Для QQ-plot передаем оба трейса
+        const data = Array.isArray(plot.data) ? plot.data : [plot.data];
+        
+        Plotly.newPlot(containerId, data, layout, {displayModeBar: false});
     }
 
-    // Для QQ-plot передаем оба трейса
-    const data = Array.isArray(plot.data) ? plot.data : [plot.data];
-    
-    Plotly.newPlot(containerId, data, layout, {displayModeBar: false});
-}
-
+    // Остальные методы остаются без изменений...
     selectPlot(category, label) {
-        // Если этот график уже в найденной тройке - игнорируем
         if (this.isPlotInFoundMatch(category, label)) {
             return;
         }
-
         this.currentSelection[category] = label;
         this.updateSelectionDisplay();
-        this.renderPlots(); // Перерисовываем для обновления выделения
+        this.renderPlots();
     }
 
     isPlotSelected(category, label) {
@@ -331,11 +413,9 @@ class DistributionMatcher {
             return;
         }
 
-        // Проверяем, является ли выбранная тройка правильной
         const distributionId = this.findDistributionForSelection();
         
         if (distributionId !== -1) {
-            // Правильное сопоставление!
             this.foundMatches.push({ histogram, box, qq });
             this.showResult(`Верно! Вы нашли правильную тройку ${histogram}-${box}-${qq}`, 'success');
             this.clearSelection();
