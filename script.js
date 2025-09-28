@@ -2,12 +2,12 @@ class DistributionMatcher {
     constructor() {
         this.distributions = [];
         this.plots = {
-            density: [], // a, b, c
+            histogram: [], // a, b, c
             box: [],     // 1, 2, 3  
             qq: []       // I, II, III
         };
         this.currentSelection = {
-            density: null,
+            histogram: null,
             box: null,
             qq: null
         };
@@ -26,30 +26,30 @@ class DistributionMatcher {
 
     generateDistributions() {
         const generators = [
-            // Бимодальное
+            // Бимодальное (два пика)
             () => {
-                const data1 = this.generateNormal(-2, 0.8, 150);
-                const data2 = this.generateNormal(2, 0.8, 150);
-                return data1.concat(data2);
+                const data1 = this.generateNormal(25, 8, 150);
+                const data2 = this.generateNormal(75, 8, 150);
+                return this.clampData(data1.concat(data2));
             },
-            // Нормальное
-            () => this.generateNormal(0, 1, 300),
-            // Асимметричное
+            // Нормальное распределение
+            () => this.clampData(this.generateNormal(50, 15, 300)),
+            // Асимметричное (скошенное вправо)
             () => {
-                const data = this.generateNormal(0, 1, 300);
-                return data.map(x => Math.exp(x * 0.6) - 1);
+                const data = this.generateNormal(30, 10, 300);
+                return this.clampData(data.map(x => x * 1.5 + 20));
             },
             // Узкое нормальное
-            () => this.generateNormal(0, 0.4, 300),
+            () => this.clampData(this.generateNormal(50, 5, 300)),
             // Узкое с выбросами
             () => {
-                const mainData = this.generateNormal(0, 0.3, 280);
-                const outliers = this.generateNormal(4, 0.2, 10)
-                             .concat(this.generateNormal(-4, 0.2, 10));
-                return mainData.concat(outliers);
+                const mainData = this.generateNormal(50, 5, 280);
+                const outliers = this.generateNormal(90, 2, 10)
+                             .concat(this.generateNormal(10, 2, 10));
+                return this.clampData(mainData.concat(outliers));
             },
             // Широкое нормальное
-            () => this.generateNormal(0, 2, 300)
+            () => this.clampData(this.generateNormal(50, 25, 300))
         ];
 
         // Выбираем 3 случайных распределения
@@ -59,6 +59,8 @@ class DistributionMatcher {
             data: generator(),
             label: String.fromCharCode(97 + index) // a, b, c
         }));
+
+        console.log('Generated distributions:', this.distributions);
     }
 
     generateNormal(mean, std, n) {
@@ -73,34 +75,46 @@ class DistributionMatcher {
         return data;
     }
 
+    clampData(data) {
+        // Ограничиваем значения от 0 до 100
+        return data.map(x => Math.max(0, Math.min(100, x)));
+    }
+
     createPlots() {
         // Очищаем предыдущие графики
-        this.plots = { density: [], box: [], qq: [] };
+        this.plots = { histogram: [], box: [], qq: [] };
+        
+        console.log('Creating plots for distributions...');
         
         // Создаем графики для каждого распределения
         this.distributions.forEach(dist => {
-            // Density plot
-            this.plots.density.push({
-                type: 'density',
-                data: this.createDensityPlot(dist.data),
+            console.log(`Distribution ${dist.id}:`, dist.data.slice(0, 5), '...');
+
+            // Histogram plot
+            const histogramData = this.createHistogramPlot(dist.data);
+            this.plots.histogram.push({
+                type: 'histogram',
+                data: histogramData,
                 distributionId: dist.id,
                 label: dist.label,
-                id: `density-${dist.id}`
+                id: `histogram-${dist.id}`
             });
             
             // Box plot
+            const boxData = this.createBoxPlot(dist.data);
             this.plots.box.push({
                 type: 'box',
-                data: this.createBoxPlot(dist.data),
+                data: boxData,
                 distributionId: dist.id,
                 label: (this.plots.box.length + 1).toString(),
                 id: `box-${dist.id}`
             });
             
             // QQ plot
+            const qqData = this.createQQPlot(dist.data);
             this.plots.qq.push({
                 type: 'qq',
-                data: this.createQQPlot(dist.data),
+                data: qqData,
                 distributionId: dist.id,
                 label: ['I', 'II', 'III'][this.plots.qq.length],
                 id: `qq-${dist.id}`
@@ -108,7 +122,7 @@ class DistributionMatcher {
         });
 
         // Перемешиваем графики внутри каждой категории
-        this.shuffleArray(this.plots.density);
+        this.shuffleArray(this.plots.histogram);
         this.shuffleArray(this.plots.box);
         this.shuffleArray(this.plots.qq);
 
@@ -116,21 +130,29 @@ class DistributionMatcher {
         this.correctMatches = {};
         this.distributions.forEach(dist => {
             this.correctMatches[dist.id] = {
-                density: this.plots.density.find(p => p.distributionId === dist.id).label,
+                histogram: this.plots.histogram.find(p => p.distributionId === dist.id).label,
                 box: this.plots.box.find(p => p.distributionId === dist.id).label,
                 qq: this.plots.qq.find(p => p.distributionId === dist.id).label
             };
         });
+
+        console.log('Plots created:', this.plots);
+        console.log('Correct matches:', this.correctMatches);
     }
 
-    createDensityPlot(data) {
-        const kde = this.kde(data);
+    createHistogramPlot(data) {
         return {
-            x: kde.x,
-            y: kde.y,
-            type: 'scatter',
-            mode: 'lines',
-            line: { color: '#1f77b4', width: 3 }
+            x: data,
+            type: 'histogram',
+            nbinsx: 20,
+            marker: {
+                color: 'rgba(31, 119, 180, 0.7)',
+                line: {
+                    color: '#1f77b4',
+                    width: 1
+                }
+            },
+            opacity: 0.7
         };
     }
 
@@ -139,7 +161,8 @@ class DistributionMatcher {
             y: data,
             type: 'box',
             boxpoints: false,
-            marker: { color: '#ff7f0e' }
+            marker: { color: '#ff7f0e' },
+            line: { color: '#ff7f0e' }
         };
     }
 
@@ -147,13 +170,26 @@ class DistributionMatcher {
         const sortedData = [...data].sort((a, b) => a - b);
         const theoreticalQuantiles = this.generateTheoreticalQuantiles(sortedData.length);
         
-        return {
-            x: theoreticalQuantiles,
-            y: sortedData,
-            type: 'scatter',
-            mode: 'markers',
-            marker: { color: '#2ca02c', size: 4 }
-        };
+        return [
+            // Основные точки
+            {
+                x: theoreticalQuantiles,
+                y: sortedData,
+                type: 'scatter',
+                mode: 'markers',
+                marker: { color: '#2ca02c', size: 5 },
+                name: 'QQ Plot'
+            },
+            // Линия y=x для сравнения
+            {
+                x: [-3, 3],
+                y: [-3, 3],
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: 'red', width: 1, dash: 'dash' },
+                showlegend: false
+            }
+        ];
     }
 
     generateTheoreticalQuantiles(n) {
@@ -166,9 +202,10 @@ class DistributionMatcher {
     }
 
     normalQuantile(p) {
-        if (p < 0.5) {
-            return -this.normalQuantile(1 - p);
-        }
+        // Простая аппроксимация квантиля нормального распределения
+        if (p <= 0 || p >= 1) return 0;
+        if (p < 0.5) return -this.normalQuantile(1 - p);
+        
         const t = Math.sqrt(-2 * Math.log(1 - p));
         const c0 = 2.515517;
         const c1 = 0.802853;
@@ -180,25 +217,8 @@ class DistributionMatcher {
         return t - (c0 + c1 * t + c2 * t * t) / (1 + d1 * t + d2 * t * t + d3 * t * t * t);
     }
 
-    kde(data, bandwidth = 0.5) {
-        const xMin = Math.min(...data);
-        const xMax = Math.max(...data);
-        const x = Array.from({length: 200}, (_, i) => xMin + (xMax - xMin) * i / 200);
-
-        const y = x.map(xi => {
-            let sum = 0;
-            for (const d of data) {
-                const u = (xi - d) / bandwidth;
-                sum += Math.exp(-0.5 * u * u) / Math.sqrt(2 * Math.PI);
-            }
-            return sum / (data.length * bandwidth);
-        });
-
-        return {x, y};
-    }
-
     renderPlots() {
-        this.renderPlotCategory('density', 'density-plots');
+        this.renderPlotCategory('histogram', 'histogram-plots');
         this.renderPlotCategory('box', 'box-plots');
         this.renderPlotCategory('qq', 'qq-plots');
     }
@@ -234,25 +254,37 @@ class DistributionMatcher {
 
     renderSinglePlot(plot, containerId) {
         const layout = {
-            margin: { t: 10, r: 10, b: 30, l: 40 },
-            height: 180,
+            margin: { t: 10, r: 10, b: 40, l: 50 },
+            height: 200,
             showlegend: false,
-            xaxis: { showgrid: true, zeroline: false },
-            yaxis: { showgrid: true, zeroline: false }
+            xaxis: { 
+                showgrid: true, 
+                zeroline: false,
+                range: plot.type === 'qq' ? [-3, 3] : [0, 100]
+            },
+            yaxis: { 
+                showgrid: true, 
+                zeroline: false,
+                range: plot.type === 'qq' ? [0, 100] : undefined
+            }
         };
 
         if (plot.type === 'qq') {
-            layout.xaxis.title = 'Теор. квантили';
-            layout.yaxis.title = 'Выб. квантили';
-        } else if (plot.type === 'density') {
+            layout.xaxis.title = 'Теоретические квантили';
+            layout.yaxis.title = 'Выборочные квантили';
+        } else if (plot.type === 'histogram') {
             layout.xaxis.title = 'Значение';
-            layout.yaxis.title = 'Плотность';
+            layout.yaxis.title = 'Частота';
+            layout.bargap = 0.1;
         } else {
             layout.yaxis.title = 'Значение';
-            layout.xaxis = { showticklabels: false };
+            layout.xaxis = { showticklabels: false, title: '' };
         }
 
-        Plotly.newPlot(containerId, [plot.data], layout, {displayModeBar: false});
+        // Для QQ-plot передаем оба трейса
+        const data = Array.isArray(plot.data) ? plot.data : [plot.data];
+        
+        Plotly.newPlot(containerId, data, layout, {displayModeBar: false});
     }
 
     selectPlot(category, label) {
@@ -272,7 +304,7 @@ class DistributionMatcher {
 
     isPlotMatched(plot) {
         return this.foundMatches.some(match => 
-            match.density === plot.label && plot.type === 'density' ||
+            match.histogram === plot.label && plot.type === 'histogram' ||
             match.box === plot.label && plot.type === 'box' || 
             match.qq === plot.label && plot.type === 'qq'
         );
@@ -283,15 +315,15 @@ class DistributionMatcher {
     }
 
     updateSelectionDisplay() {
-        document.getElementById('density-selection').textContent = this.currentSelection.density || '-';
+        document.getElementById('histogram-selection').textContent = this.currentSelection.histogram || '-';
         document.getElementById('box-selection').textContent = this.currentSelection.box || '-';
         document.getElementById('qq-selection').textContent = this.currentSelection.qq || '-';
     }
 
     checkSelection() {
-        const { density, box, qq } = this.currentSelection;
+        const { histogram, box, qq } = this.currentSelection;
         
-        if (!density || !box || !qq) {
+        if (!histogram || !box || !qq) {
             this.showResult('Выберите по одному графику из каждой категории!', 'error');
             return;
         }
@@ -301,8 +333,8 @@ class DistributionMatcher {
         
         if (distributionId !== -1) {
             // Правильное сопоставление!
-            this.foundMatches.push({ density, box, qq });
-            this.showResult(`Верно! Вы нашли правильную тройку ${density}-${box}-${qq}`, 'success');
+            this.foundMatches.push({ histogram, box, qq });
+            this.showResult(`Верно! Вы нашли правильную тройку ${histogram}-${box}-${qq}`, 'success');
             this.clearSelection();
             this.updateProgress();
             
@@ -315,11 +347,11 @@ class DistributionMatcher {
     }
 
     findDistributionForSelection() {
-        const { density, box, qq } = this.currentSelection;
+        const { histogram, box, qq } = this.currentSelection;
         
         for (let distId = 0; distId < 3; distId++) {
             const correct = this.correctMatches[distId];
-            if (correct.density === density && correct.box === box && correct.qq === qq) {
+            if (correct.histogram === histogram && correct.box === box && correct.qq === qq) {
                 return distId;
             }
         }
@@ -342,7 +374,7 @@ class DistributionMatcher {
     }
 
     clearSelection() {
-        this.currentSelection = { density: null, box: null, qq: null };
+        this.currentSelection = { histogram: null, box: null, qq: null };
         this.updateSelectionDisplay();
         this.renderPlots();
     }
@@ -378,8 +410,8 @@ class DistributionMatcher {
 
     newGame() {
         this.distributions = [];
-        this.plots = { density: [], box: [], qq: [] };
-        this.currentSelection = { density: null, box: null, qq: null };
+        this.plots = { histogram: [], box: [], qq: [] };
+        this.currentSelection = { histogram: null, box: null, qq: null };
         this.foundMatches = [];
         this.correctMatches = {};
         
