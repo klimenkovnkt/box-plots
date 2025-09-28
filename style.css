@@ -28,29 +28,51 @@ h1 {
     font-size: 1.1em;
 }
 
-.game-area {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 30px;
+.instructions {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+    border-left: 4px solid #667eea;
+}
+
+.instruction-section h3 {
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.instruction-section ul {
+    color: #555;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.instruction-section li {
+    margin-bottom: 8px;
+}
+
+.plots-section {
     margin-bottom: 30px;
 }
 
-.plots-container h2,
-.distributions-container h2 {
-    color: #333;
-    border-bottom: 2px solid #667eea;
-    padding-bottom: 10px;
-    margin-bottom: 20px;
+.plot-category {
+    margin-bottom: 30px;
 }
 
-.plots-grid {
+.plot-category h3 {
+    color: #333;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.plots-row {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 20px;
 }
 
-.plot-item {
-    border: 2px solid #e0e0e0;
+.plot-wrapper {
+    border: 3px solid #e0e0e0;
     border-radius: 10px;
     padding: 15px;
     background: #fafafa;
@@ -59,86 +81,88 @@ h1 {
     position: relative;
 }
 
-.plot-item:hover {
+.plot-wrapper:hover {
     border-color: #667eea;
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
 
-.plot-item.selected {
+.plot-wrapper.selected {
     border-color: #667eea;
     background: #f0f4ff;
 }
 
-.plot-item.matched {
+.plot-wrapper.matched {
     border-color: #28a745;
     background: #f8fff9;
+    cursor: default;
 }
 
-.plot-type {
+.plot-wrapper.matched:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.plot-label {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255,255,255,0.9);
+    padding: 5px 10px;
+    border-radius: 5px;
     font-weight: bold;
-    color: #555;
-    margin-bottom: 10px;
+    font-size: 1.2em;
+    z-index: 10;
+}
+
+.plot {
+    height: 180px;
+    margin-top: 10px;
+}
+
+.selection-area {
+    background: #f8f9fa;
+    padding: 25px;
+    border-radius: 10px;
+    margin-bottom: 20px;
     text-align: center;
-    font-size: 0.9em;
 }
 
-.plot-container {
-    height: 200px;
+.selection-area h3 {
+    color: #333;
+    margin-bottom: 20px;
 }
 
-.distributions-list {
+.current-selection {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    justify-content: center;
+    gap: 40px;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
 }
 
-.distribution-item {
-    padding: 15px;
-    border: 2px solid #e0e0e0;
+.selection-item {
+    font-size: 1.1em;
+    padding: 10px 20px;
+    background: white;
     border-radius: 8px;
-    background: #fafafa;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    border: 2px solid #e0e0e0;
+    min-width: 120px;
 }
 
-.distribution-item:hover {
-    border-color: #667eea;
-    transform: translateX(5px);
-}
-
-.distribution-item.selected {
-    border-color: #667eea;
-    background: #f0f4ff;
-}
-
-.distribution-item.matched {
-    border-color: #28a745;
-    background: #f8fff9;
-}
-
-.match-indicator {
-    color: #28a745;
+.selection-item span:last-child {
     font-weight: bold;
+    color: #667eea;
 }
 
-.controls {
-    margin-top: 30px;
-    display: flex;
-    gap: 10px;
-    flex-direction: column;
-}
-
-.check-btn, .reset-btn {
-    padding: 12px 20px;
+.check-btn, .clear-btn, .new-game-btn {
+    padding: 12px 25px;
     border: none;
     border-radius: 6px;
     font-size: 1em;
     cursor: pointer;
     transition: all 0.3s ease;
+    margin: 0 10px;
 }
 
 .check-btn {
@@ -151,23 +175,38 @@ h1 {
     transform: translateY(-2px);
 }
 
-.reset-btn {
+.clear-btn {
     background: #6c757d;
     color: white;
 }
 
-.reset-btn:hover {
+.clear-btn:hover {
     background: #545b62;
     transform: translateY(-2px);
 }
 
+.new-game-btn {
+    background: #007bff;
+    color: white;
+    display: block;
+    margin: 30px auto 0;
+    padding: 15px 30px;
+    font-size: 1.1em;
+}
+
+.new-game-btn:hover {
+    background: #0056b3;
+    transform: translateY(-2px);
+}
+
 .result {
-    margin-top: 20px;
-    padding: 15px;
+    margin: 20px 0;
+    padding: 20px;
     border-radius: 8px;
     text-align: center;
     font-weight: bold;
     font-size: 1.1em;
+    min-height: 20px;
 }
 
 .result.success {
@@ -182,44 +221,58 @@ h1 {
     border: 1px solid #f5c6cb;
 }
 
-.instructions {
-    background: #f8f9fa;
-    padding: 20px;
-    border-radius: 8px;
-    border-left: 4px solid #667eea;
+.result.final-success {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+    font-size: 1.3em;
+    padding: 30px;
 }
 
-.instructions h3 {
+.progress {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.progress h3 {
     color: #333;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 }
 
-.instructions ul {
-    color: #555;
-    line-height: 1.6;
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
 }
 
-.instructions li {
-    margin-bottom: 8px;
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #20c997);
+    width: 0%;
+    transition: width 0.5s ease;
 }
 
 /* Адаптивность */
-@media (max-width: 1200px) {
-    .plots-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
 @media (max-width: 768px) {
-    .game-area {
+    .plots-row {
         grid-template-columns: 1fr;
+        gap: 15px;
     }
     
-    .plots-grid {
-        grid-template-columns: 1fr;
+    .current-selection {
+        flex-direction: column;
+        gap: 15px;
     }
     
     .container {
         padding: 15px;
+    }
+    
+    .check-btn, .clear-btn {
+        display: block;
+        width: 100%;
+        margin: 10px 0;
     }
 }
