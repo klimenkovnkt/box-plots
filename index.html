@@ -3,51 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Сопоставление распределений и графиков</title>
+    <title>Сопоставление графиков распределений</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstat/1.9.5/jstat.min.js"></script>
     <script src="script.js" defer></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>Сопоставьте распределения с графиками</h1>
-        <p class="description">Сопоставьте типы распределений с соответствующими графиками плотности, box-plot и QQ-plot</p>
+        <h1>Сопоставьте графики одного распределения</h1>
+        <p class="description">Найдите тройки графиков (плотность, box-plot, QQ-plot), которые показывают одно и то же распределение</p>
         
-        <div class="game-area">
-            <div class="plots-container">
-                <h2>Графики</h2>
-                <div id="plots-grid" class="plots-grid">
-                    <!-- Графики будут сгенерированы здесь -->
+        <div class="instructions">
+            <div class="instruction-section">
+                <h3>Правила игры:</h3>
+                <ul>
+                    <li>Найдите три графика, которые показывают одно распределение</li>
+                    <li>Нажмите на график плотности (a, b, c), затем на box-plot (1, 2, 3), затем на QQ-plot (I, II, III)</li>
+                    <li>Если все три графика показывают одно распределение - вы правильно нашли тройку!</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="plots-section">
+            <div class="plot-category">
+                <h3>Графики плотности</h3>
+                <div class="plots-row" id="density-plots">
+                    <!-- Графики плотности a, b, c -->
                 </div>
             </div>
             
-            <div class="distributions-container">
-                <h2>Типы распределений</h2>
-                <div id="distributions-list" class="distributions-list">
-                    <!-- Список распределений будет сгенерирован здесь -->
+            <div class="plot-category">
+                <h3>Box-plots</h3>
+                <div class="plots-row" id="box-plots">
+                    <!-- Box-plots 1, 2, 3 -->
                 </div>
-                
-                <div class="controls">
-                    <button id="check-btn" class="check-btn">Проверить ответ</button>
-                    <button id="reset-btn" class="reset-btn">Новая игра</button>
+            </div>
+            
+            <div class="plot-category">
+                <h3>QQ-plots</h3>
+                <div class="plots-row" id="qq-plots">
+                    <!-- QQ-plots I, II, III -->
                 </div>
-                
-                <div id="result" class="result"></div>
             </div>
         </div>
         
-        <div class="instructions">
-            <h3>Типы распределений:</h3>
-            <ul>
-                <li><strong>Бимодальное</strong> - два пика плотности</li>
-                <li><strong>Нормальное</strong> - классический колокол</li>
-                <strong>Нормальное с асимметрией</strong> - смещенный колокол</li>
-                <li><strong>Узкое нормальное</strong> - маленький разброс</li>
-                <li><strong>Узкое с выбросами</strong> - компактное с крайними значениями</li>
-                <li><strong>Широкое нормальное</strong> - большой разброс</li>
-            </ul>
+        <div class="selection-area">
+            <h3>Ваш выбор:</h3>
+            <div id="current-selection" class="current-selection">
+                <div class="selection-item">
+                    <span>Плотность: </span>
+                    <span id="density-selection">-</span>
+                </div>
+                <div class="selection-item">
+                    <span>Box-plot: </span>
+                    <span id="box-selection">-</span>
+                </div>
+                <div class="selection-item">
+                    <span>QQ-plot: </span>
+                    <span id="qq-selection">-</span>
+                </div>
+            </div>
+            
+            <button id="check-btn" class="check-btn">Проверить тройку</button>
+            <button id="clear-btn" class="clear-btn">Очистить выбор</button>
         </div>
+        
+        <div id="result" class="result"></div>
+        
+        <div class="progress">
+            <h3>Найдено троек: <span id="progress-count">0</span> из 3</h3>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+        </div>
+        
+        <button id="new-game-btn" class="new-game-btn">Новая игра</button>
     </div>
 </body>
 </html>
