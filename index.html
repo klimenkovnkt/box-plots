@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сопоставление распределений и графиков</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstat/1.9.5/jstat.min.js"></script>
+    <script src="script.js" defer></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Сопоставьте распределения с графиками</h1>
+        <p class="description">Сопоставьте типы распределений с соответствующими графиками плотности, box-plot и QQ-plot</p>
+        
+        <div class="game-area">
+            <div class="plots-container">
+                <h2>Графики</h2>
+                <div id="plots-grid" class="plots-grid">
+                    <!-- Графики будут сгенерированы здесь -->
+                </div>
+            </div>
+            
+            <div class="distributions-container">
+                <h2>Типы распределений</h2>
+                <div id="distributions-list" class="distributions-list">
+                    <!-- Список распределений будет сгенерирован здесь -->
+                </div>
+                
+                <div class="controls">
+                    <button id="check-btn" class="check-btn">Проверить ответ</button>
+                    <button id="reset-btn" class="reset-btn">Новая игра</button>
+                </div>
+                
+                <div id="result" class="result"></div>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>Типы распределений:</h3>
+            <ul>
+                <li><strong>Бимодальное</strong> - два пика плотности</li>
+                <li><strong>Нормальное</strong> - классический колокол</li>
+                <strong>Нормальное с асимметрией</strong> - смещенный колокол</li>
+                <li><strong>Узкое нормальное</strong> - маленький разброс</li>
+                <li><strong>Узкое с выбросами</strong> - компактное с крайними значениями</li>
+                <li><strong>Широкое нормальное</strong> - большой разброс</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
